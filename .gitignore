@@ -1,0 +1,15 @@
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Config (personal settings)
+pomodoro_config.json
+
+# OS
+.DS_Store
+Thumbs.db
