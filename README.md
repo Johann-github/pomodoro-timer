@@ -38,3 +38,23 @@ python -m PyInstaller --onefile --windowed --name "PomodoroTimer" --icon "pomodo
 ```
 
 The executable will be created in the `dist/` folder.
+
+## Roadmap
+
+### ✅ Done
+- [x] Windows desktop app (Python + tkinter)
+- [x] Circular progress timer with Work / Short Break / Long Break
+- [x] Adjustable Pomodoro cycles (2–8) with custom break schedule
+- [x] Inline session notifications (no popup windows)
+- [x] To-Do list with archive
+- [x] Dark / Light mode
+- [x] Custom accent colors per mode
+- [x] German / English language support
+- [x] Settings persist across restarts
+
+### 🚧 Planned
+- [ ] **macOS version** — native `.app` bundle via PyInstaller for macOS
+- [ ] **Web version** — browser-based app (React or SvelteKit)
+- [ ] **iOS app** — native timer app for iPhone / iPad
+- [ ] **Android app** — native timer app for Android
+- [ ] **Cross-platform task sync** — sync To-Do list and settings across all devices via cloud backend
