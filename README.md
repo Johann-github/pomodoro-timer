@@ -1,6 +1,6 @@
 # 🍅 Pomodoro Timer
 
-A clean, dark-mode Pomodoro timer app available as a Windows desktop app (Python/tkinter) and a browser-based web app (vanilla HTML/CSS/JS).
+A clean, dark-mode Pomodoro timer app available as a Windows/macOS desktop app (Python/tkinter) and a browser-based web app (vanilla HTML/CSS/JS).
 
 ## Features
 
@@ -22,13 +22,13 @@ A clean, dark-mode Pomodoro timer app available as a Windows desktop app (Python
 
 Open `web/index.html` in any modern browser — no installation required.
 
-## Desktop Version (Windows)
+## Desktop Version (Windows & macOS)
 
 ### Requirements
 
 - Python 3.10+
-- tkinter (included with Python on Windows)
-- PyInstaller (for building the EXE)
+- tkinter (included with Python on Windows; install via `brew install python-tk` on macOS)
+- PyInstaller (for building the standalone app)
 
 ### Run from source
 
@@ -36,7 +36,7 @@ Open `web/index.html` in any modern browser — no installation required.
 python pomodoro.py
 ```
 
-### Build the EXE
+### Build — Windows EXE
 
 ```bash
 pip install pyinstaller
@@ -44,6 +44,15 @@ python -m PyInstaller --onefile --windowed --name "PomodoroTimer" --icon "pomodo
 ```
 
 The executable will be created in the `dist/` folder.
+
+### Build — macOS .app
+
+```bash
+chmod +x build_macos.sh
+./build_macos.sh
+```
+
+The `.app` bundle will be created in the `dist/` folder.
 
 ## Roadmap
 
@@ -58,9 +67,9 @@ The executable will be created in the `dist/` folder.
 - [x] German / English language support
 - [x] Settings persist across restarts
 - [x] Web version — single-file browser app (vanilla HTML/CSS/JS, no build step)
+- [x] macOS version — cross-platform Python app, builds to `.app` bundle via PyInstaller
 
 ### 🚧 Planned
-- [ ] **macOS version** — native `.app` bundle via PyInstaller for macOS
 - [ ] **iOS app** — native timer app for iPhone / iPad
 - [ ] **Android app** — native timer app for Android
 - [ ] **Cross-platform task sync** — sync To-Do list and settings across all devices via cloud backend

@@ -1,10 +1,15 @@
 import tkinter as tk
 from tkinter import colorchooser
-import winsound
 import threading
 import json
 import pathlib
 import sys
+import math
+import struct
+import wave
+import tempfile
+import os
+import subprocess
 
 # ── Translations ─────────────────────────────────────────────────────────────
 
@@ -1088,8 +1093,30 @@ class PomodoroApp:
         if self._muted:
             return
         try:
-            for freq, dur in [(880, 220), (660, 180), (880, 280)]:
-                winsound.Beep(freq, dur)
+            if sys.platform == "win32":
+                import winsound
+                for freq, dur in [(880, 220), (660, 180), (880, 280)]:
+                    winsound.Beep(freq, dur)
+            else:
+                # Cross-platform: generate sine-wave WAV and play via afplay (macOS) or aplay (Linux)
+                sample_rate = 44100
+                for freq, dur in [(880, 220), (660, 180), (880, 280)]:
+                    n = int(sample_rate * dur / 1000)
+                    data = struct.pack(
+                        f"<{n}h",
+                        *[int(32767 * 0.5 * math.sin(2 * math.pi * freq * i / sample_rate))
+                          for i in range(n)]
+                    )
+                    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+                        tmp = f.name
+                    with wave.open(tmp, "wb") as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2)
+                        wf.setframerate(sample_rate)
+                        wf.writeframes(data)
+                    player = "afplay" if sys.platform == "darwin" else "aplay"
+                    subprocess.run([player, tmp], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    os.unlink(tmp)
         except Exception:
             pass
 
