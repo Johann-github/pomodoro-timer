@@ -1,6 +1,6 @@
 # 🍅 Pomodoro Timer
 
-A clean, dark-mode Pomodoro timer app built with Python and tkinter — packaged as a standalone Windows EXE.
+A clean, dark-mode Pomodoro timer app available as a Windows desktop app (Python/tkinter) and a browser-based web app (vanilla HTML/CSS/JS).
 
 ## Features
 
@@ -18,19 +18,25 @@ A clean, dark-mode Pomodoro timer app built with Python and tkinter — packaged
 - **Mute toggle** for session-done sound
 - All settings are saved automatically and persist across restarts
 
-## Requirements
+## Web Version
+
+Open `web/index.html` in any modern browser — no installation required.
+
+## Desktop Version (Windows)
+
+### Requirements
 
 - Python 3.10+
 - tkinter (included with Python on Windows)
 - PyInstaller (for building the EXE)
 
-## Run from source
+### Run from source
 
 ```bash
 python pomodoro.py
 ```
 
-## Build the EXE
+### Build the EXE
 
 ```bash
 pip install pyinstaller
@@ -51,10 +57,10 @@ The executable will be created in the `dist/` folder.
 - [x] Custom accent colors per mode
 - [x] German / English language support
 - [x] Settings persist across restarts
+- [x] Web version — single-file browser app (vanilla HTML/CSS/JS, no build step)
 
 ### 🚧 Planned
 - [ ] **macOS version** — native `.app` bundle via PyInstaller for macOS
-- [ ] **Web version** — browser-based app (React or SvelteKit)
 - [ ] **iOS app** — native timer app for iPhone / iPad
 - [ ] **Android app** — native timer app for Android
 - [ ] **Cross-platform task sync** — sync To-Do list and settings across all devices via cloud backend
