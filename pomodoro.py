@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import colorchooser
 import threading
+import time as _time_mod
 import json
 import pathlib
 import sys
@@ -109,8 +110,9 @@ class PomodoroApp:
         self._notif_job = None
         self._color_btns: dict[str, tk.Button] = {}
 
-        self._lang  = "de"
-        self._theme = "dark"
+        self._lang     = "de"
+        self._theme    = "dark"
+        self._pet_type = "cat"
         self._apply_theme_colors()
 
         s = STRINGS[self._lang]
@@ -326,6 +328,8 @@ class PomodoroApp:
             skip_row, s["skip"], self.skip,
             bg=self.BG, fg=self.FG_DIM, active_bg=self.BG, active_fg=self.FG,
         ).pack()
+
+        self._build_pet()
 
         tk.Frame(self._page_main, height=1, bg=th["SEP"]).pack(
             fill=tk.X, padx=20, pady=(14, 0),
@@ -664,6 +668,7 @@ class PomodoroApp:
         saved_time     = self.time_left
         saved_cycles   = self.cycles_done
         saved_muted    = self._muted
+        saved_pet      = self._pet_type
 
         self._apply_theme_colors()
         self.root.configure(bg=self.BG)
@@ -687,6 +692,7 @@ class PomodoroApp:
         self.time_left     = saved_time
         self.cycles_done   = saved_cycles
         self._muted        = saved_muted
+        self._pet_type     = saved_pet
 
         self._build_ui()
         self._refresh()
@@ -779,6 +785,188 @@ class PomodoroApp:
         if width:
             kw["width"] = width
         return tk.Button(parent, **kw)
+
+    # ──────────────────────────────────────────── Pet ──
+
+    def _build_pet(self) -> None:
+        s = STRINGS[self._lang]
+        pet_lbl = "🐱  " + ("Katze" if self._lang == "de" else "Cat") if self._pet_type == "cat" \
+             else "🐶  " + ("Hund"  if self._lang == "de" else "Dog")
+        pet_wrap = tk.Frame(self._page_main, bg=self.BG)
+        pet_wrap.pack(pady=(2, 0))
+        self._pet_canvas = tk.Canvas(
+            pet_wrap, width=90, height=90,
+            bg=self.BG, highlightthickness=0, cursor="hand2",
+        )
+        self._pet_canvas.pack()
+        self._pet_canvas.bind("<Button-1>", lambda _e: self._toggle_pet())
+        self._pet_lbl = tk.Label(
+            pet_wrap, text=pet_lbl, font=("Segoe UI", 10),
+            bg=self.BG, fg=self.FG_DIM, cursor="hand2",
+        )
+        self._pet_lbl.pack()
+        self._pet_lbl.bind("<Button-1>", lambda _e: self._toggle_pet())
+        self._pet_tick()
+
+    def _toggle_pet(self) -> None:
+        self._pet_type = "dog" if self._pet_type == "cat" else "cat"
+        pet_lbl = "🐱  " + ("Katze" if self._lang == "de" else "Cat") if self._pet_type == "cat" \
+             else "🐶  " + ("Hund"  if self._lang == "de" else "Dog")
+        try:
+            self._pet_lbl.config(text=pet_lbl)
+        except Exception:
+            pass
+        self._save_config()
+
+    def _pet_state(self) -> str:
+        if self.mode != "work":
+            return "sleep"
+        return "play" if self.running else "idle"
+
+    def _pet_tick(self) -> None:
+        try:
+            if not self._pet_canvas.winfo_exists():
+                return
+        except Exception:
+            return
+        t = _time_mod.time() * 1000
+        self._draw_pet(t)
+        self.root.after(50, self._pet_tick)
+
+    def _draw_pet(self, t: float) -> None:
+        c = self._pet_canvas
+        c.delete("pet")
+        ps = self._pet_state()
+        if self._pet_type == "cat":
+            self._draw_cat(c, t, ps)
+        else:
+            self._draw_dog(c, t, ps)
+
+    # ── bezier helper for tails ──
+    @staticmethod
+    def _bezier_pts(x0, y0, cx1, cy1, cx2, cy2, x1, y1, steps=18):
+        pts = []
+        for i in range(steps + 1):
+            s = i / steps
+            bx = (1-s)**3*x0 + 3*(1-s)**2*s*cx1 + 3*(1-s)*s**2*cx2 + s**3*x1
+            by = (1-s)**3*y0 + 3*(1-s)**2*s*cy1 + 3*(1-s)*s**2*cy2 + s**3*y1
+            pts += [bx, by]
+        return pts
+
+    def _draw_cat(self, c: tk.Canvas, t: float, ps: str) -> None:
+        F, D, P, cx = "#8888aa", "#56567a", "#e088a0", 45
+
+        if ps == "sleep":
+            c.create_oval(28, 59, 72, 81, fill=F, outline="", tags="pet")
+            tail = self._bezier_pts(70,65, 83,52, 80,74, 68,72)
+            c.create_line(*tail, fill=F, width=5, smooth=True, capstyle="round", tags="pet")
+            c.create_oval(13, 54, 37, 78, fill=F, outline="", tags="pet")
+            c.create_polygon(17,58, 19,48, 25,57, fill=F, outline="", tags="pet")
+            c.create_polygon(18,57, 20,52, 24,57, fill=P, outline="", tags="pet")
+            c.create_arc(18,63, 24,69, start=0, extent=180, style="arc", outline=D, width=2, tags="pet")
+            c.create_arc(26,63, 32,69, start=0, extent=180, style="arc", outline=D, width=2, tags="pet")
+            zy = 18 - (t % 2400) / 2400 * 12
+            if (t % 2400) / 300 > 0.5:
+                c.create_text(55, zy+28, text="z", font=("Segoe UI", 9,  "bold"), fill=D, tags="pet")
+                c.create_text(61, zy+16, text="z", font=("Segoe UI", 11, "bold"), fill=D, tags="pet")
+                c.create_text(68, zy+2,  text="Z", font=("Segoe UI", 13, "bold"), fill=D, tags="pet")
+            return
+
+        bou = -abs(math.sin(t * .007)) * 10 if ps == "play" else 0
+        br  = math.sin(t * .0018) * 1.4
+        ta  = math.sin(t * .0012) * (.68 if ps == "play" else .28)
+        blk = (t % 3800) < 160
+        fy, hy = 83 + bou, 83 + bou - 37
+
+        # tail
+        ty3 = fy - 62 if ps == "play" else fy - 55
+        tail = self._bezier_pts(cx+16,fy-14, cx+38+ta*8,fy-32, cx+34+ta*8,fy-50, cx+22+ta*8,ty3)
+        c.create_line(*tail, fill=F, width=5, smooth=True, capstyle="round", tags="pet")
+        # body
+        by = fy - 15; bry = 11 + br * .5
+        c.create_oval(cx-16, by-bry, cx+16, by+bry, fill=F, outline="", tags="pet")
+        # head
+        c.create_oval(cx-13, hy-13, cx+13, hy+13, fill=F, outline="", tags="pet")
+        # ears
+        eh = 19 if ps == "play" else 17
+        c.create_polygon(cx-14,hy-5, cx-10,hy-eh, cx-3,hy-7,  fill=F, outline="", tags="pet")
+        c.create_polygon(cx+3, hy-7, cx+10,hy-eh, cx+14,hy-5, fill=F, outline="", tags="pet")
+        c.create_polygon(cx-12,hy-6, cx-9,hy-eh+4, cx-5,hy-7,  fill=P, outline="", tags="pet")
+        c.create_polygon(cx+5, hy-7, cx+9,hy-eh+4, cx+12,hy-6, fill=P, outline="", tags="pet")
+        # eyes
+        eo = 3.5 if ps == "play" else (.5 if blk else 2.8)
+        c.create_oval(cx-7.5, hy-eo, cx-2.5, hy+eo, fill=D, outline="", tags="pet")
+        c.create_oval(cx+2.5, hy-eo, cx+7.5, hy+eo, fill=D, outline="", tags="pet")
+        if not blk:
+            c.create_oval(cx-5,.9, cx-3,.9+1.8, fill="#ffffff", outline="", tags="pet")  # shine dots
+            c.create_oval(cx-5,hy-2, cx-3,hy,   fill="#ffffff", outline="", tags="pet")
+            c.create_oval(cx+5,hy-2, cx+7,hy,   fill="#ffffff", outline="", tags="pet")
+        # nose
+        c.create_polygon(cx-2,hy+5, cx+2,hy+5, cx,hy+7, fill=P, outline="", tags="pet")
+        # paws
+        if ps == "play":
+            c.create_oval(cx-17,fy-2, cx-5,fy+6,  fill=F, outline="", tags="pet")
+            c.create_oval(cx+5, fy-2, cx+17,fy+6, fill=F, outline="", tags="pet")
+        else:
+            c.create_oval(cx-16,fy-5, cx-2,fy+4,  fill=F, outline="", tags="pet")
+            c.create_oval(cx+2, fy-5, cx+16,fy+4, fill=F, outline="", tags="pet")
+
+    def _draw_dog(self, c: tk.Canvas, t: float, ps: str) -> None:
+        F, D, SN, cx = "#c8966e", "#7a4e28", "#d4a880", 45
+
+        if ps == "sleep":
+            c.create_oval(28, 59, 72, 81, fill=F, outline="", tags="pet")
+            tail = self._bezier_pts(70,64, 80,54, 78,72, 67,72)
+            c.create_line(*tail, fill=F, width=6, smooth=True, capstyle="round", tags="pet")
+            c.create_oval(12, 53, 38, 79, fill=F, outline="", tags="pet")
+            c.create_oval(10, 62, 22, 82, fill=F, outline="", tags="pet")   # floppy ear
+            c.create_oval(14, 64, 26, 72, fill=SN, outline="", tags="pet")  # snout
+            c.create_oval(15, 65, 21, 69, fill=D,  outline="", tags="pet")  # nose
+            c.create_arc(19,60, 25,66, start=0, extent=180, style="arc", outline=D, width=2, tags="pet")
+            c.create_arc(27,60, 33,66, start=0, extent=180, style="arc", outline=D, width=2, tags="pet")
+            zy = 18 - (t % 2400) / 2400 * 12
+            if (t % 2400) / 300 > 0.5:
+                c.create_text(55, zy+28, text="z", font=("Segoe UI", 9,  "bold"), fill=D, tags="pet")
+                c.create_text(61, zy+16, text="z", font=("Segoe UI", 11, "bold"), fill=D, tags="pet")
+                c.create_text(68, zy+2,  text="Z", font=("Segoe UI", 13, "bold"), fill=D, tags="pet")
+            return
+
+        bou = -abs(math.sin(t * .007)) * 10 if ps == "play" else 0
+        br  = math.sin(t * .0018) * 1.4
+        tsp = .012 if ps == "play" else .006
+        ta  = math.sin(t * tsp) * (1.1 if ps == "play" else .44)
+        blk = (t % 4000) < 180
+        fy, hy = 83 + bou, 83 + bou - 38
+
+        # tail
+        tail = self._bezier_pts(cx+17,fy-16, cx+28+ta*10,fy-28, cx+26+ta*10,fy-40, cx+18+ta*8,fy-42)
+        c.create_line(*tail, fill=F, width=6, smooth=True, capstyle="round", tags="pet")
+        # body
+        bry = 12 + br * .5
+        c.create_oval(cx-17, fy-16-bry, cx+17, fy-16+bry, fill=F, outline="", tags="pet")
+        # head
+        c.create_oval(cx-15, hy-15, cx+15, hy+15, fill=F, outline="", tags="pet")
+        # floppy ears (drawn on top of head sides)
+        c.create_oval(cx-25, hy-6, cx-11, hy+16, fill=F, outline="", tags="pet")
+        c.create_oval(cx+11, hy-6, cx+25, hy+16, fill=F, outline="", tags="pet")
+        # snout
+        c.create_oval(cx-7, hy+1, cx+7, hy+11, fill=SN, outline="", tags="pet")
+        # eyes
+        eo = 4 if ps == "play" else (.5 if blk else 3.5)
+        c.create_oval(cx-9, hy-3-eo, cx-3, hy-3+eo, fill=D, outline="", tags="pet")
+        c.create_oval(cx+3, hy-3-eo, cx+9, hy-3+eo, fill=D, outline="", tags="pet")
+        if not blk:
+            c.create_oval(cx-6,hy-5, cx-4,hy-3, fill="#ffffff", outline="", tags="pet")
+            c.create_oval(cx+6,hy-5, cx+8,hy-3, fill="#ffffff", outline="", tags="pet")
+        # nose
+        c.create_oval(cx-3.5, hy+1.5, cx+3.5, hy+6.5, fill=D, outline="", tags="pet")
+        # paws
+        if ps == "play":
+            c.create_oval(cx-19,fy-1, cx-5,fy+7,  fill=F, outline="", tags="pet")
+            c.create_oval(cx+5, fy-1, cx+19,fy+7, fill=F, outline="", tags="pet")
+        else:
+            c.create_oval(cx-17,fy-4, cx-3,fy+6,  fill=F, outline="", tags="pet")
+            c.create_oval(cx+3, fy-4, cx+17,fy+6, fill=F, outline="", tags="pet")
 
     # ──────────────────────────────────────────── Task logic ──
 
@@ -1052,6 +1240,8 @@ class PomodoroApp:
                 self._lang = data["lang"]
             if "theme" in data and data["theme"] in ("dark", "light"):
                 self._theme = data["theme"]
+            if "pet_type" in data and data["pet_type"] in ("cat", "dog"):
+                self._pet_type = data["pet_type"]
             for key in ("work", "short_break", "long_break"):
                 ck = f"color_{key}"
                 if ck in data and isinstance(data[ck], str) and data[ck].startswith("#"):
@@ -1067,6 +1257,7 @@ class PomodoroApp:
             data["break_schedule"] = self._break_schedule
             data["lang"]           = self._lang
             data["theme"]          = self._theme
+            data["pet_type"]       = self._pet_type
             for key in ("work", "short_break", "long_break"):
                 data[f"color_{key}"] = self.MODES[key][1]
             self._config_path().write_text(json.dumps(data))

@@ -317,6 +317,25 @@ button { background: none; border: none; cursor: pointer; font-family: inherit; 
   font-family: inherit;
 }
 .toggle-btn.active { background: var(--accent-sel); color: #fff; font-weight: 700; }
+
+/* ── Pet ── */
+.pet-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+  padding: 0 0 4px;
+}
+#pet-canvas { display: block; }
+#pet-label {
+  font-size: 11px;
+  color: var(--fg-dim);
+  margin-top: 1px;
+  transition: color 0.15s;
+}
+.pet-area:hover #pet-label { color: var(--fg); }
 </style>
 </head>
 <body>
@@ -369,6 +388,11 @@ button { background: none; border: none; cursor: pointer; font-family: inherit; 
 
     <div class="skip-row">
       <button class="btn-ghost" id="skip-btn"></button>
+    </div>
+
+    <div class="pet-area" id="pet-area">
+      <canvas id="pet-canvas" width="90" height="90"></canvas>
+      <div id="pet-label"></div>
     </div>
 
     <div class="sep"></div>
@@ -428,6 +452,7 @@ const STR = {
     menu_mute:'🔔  Ton an/aus', menu_muted:'🔇  Ton (stumm)',
     menu_settings:'⚙️  Einstellungen', menu_archive:'📦  Archiv',
     task_placeholder:'Neue Aufgabe…',
+    pet_cat:'🐱  Katze', pet_dog:'🐶  Hund',
   },
   en: {
     work:'Work Time', short_break:'Short Break', long_break:'Long Break',
@@ -450,6 +475,7 @@ const STR = {
     menu_mute:'🔔  Sound on/off', menu_muted:'🔇  Sound (muted)',
     menu_settings:'⚙️  Settings', menu_archive:'📦  Archive',
     task_placeholder:'New task…',
+    pet_cat:'🐱  Cat', pet_dog:'🐶  Dog',
   },
 };
 
@@ -465,6 +491,7 @@ let state = {
     long_break:  { color:'#2980b9', time:15*60 },
   },
   todos: [], archived: [],
+  petType: 'cat',
 };
 let nextId = 1, timerInterval = null, notifTimeout = null, menuOpen = false;
 let currentPage = 'main', timerPaused = false;
@@ -498,6 +525,7 @@ function load() {
     if (Array.isArray(d.todos))    state.todos    = d.todos;
     if (Array.isArray(d.archived)) state.archived = d.archived;
     if (typeof d.nextId === 'number') nextId = d.nextId;
+    if (d.petType && ['cat','dog'].includes(d.petType)) state.petType = d.petType;
     // detect paused state
     timerPaused = state.timeLeft < state.modes[state.mode].time;
   } catch(e) {}
@@ -585,6 +613,7 @@ function applyAllLabels() {
   $('menu-settings-btn').textContent = s('menu_settings');
   $('menu-archive-btn').textContent  = s('menu_archive');
   $('menu-mute-btn').textContent     = state.muted ? s('menu_muted') : s('menu_mute');
+  $('pet-label').textContent         = s(state.petType === 'cat' ? 'pet_cat' : 'pet_dog');
   refresh();
 }
 
@@ -684,6 +713,120 @@ function beep() {
     });
   } catch(e) {}
 }
+
+// ─────────────────────────────────────────────── Pet helpers
+function _ell(ctx,x,y,rx,ry,rot,f){ctx.beginPath();ctx.ellipse(x,y,rx,ry,rot,0,Math.PI*2);ctx.fillStyle=f;ctx.fill();}
+function _circ(ctx,x,y,r,f){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=f;ctx.fill();}
+function _poly(ctx,pts,f){ctx.beginPath();ctx.moveTo(pts[0],pts[1]);for(let i=2;i<pts.length;i+=2)ctx.lineTo(pts[i],pts[i+1]);ctx.closePath();ctx.fillStyle=f;ctx.fill();}
+function _eyeClose(ctx,x,y,r,col){ctx.beginPath();ctx.arc(x,y,r,Math.PI*.08,Math.PI*.92);ctx.strokeStyle=col;ctx.lineWidth=1.8;ctx.lineCap='round';ctx.stroke();}
+function _curve(ctx,x0,y0,cx1,cy1,cx2,cy2,x1,y1,col,w){ctx.beginPath();ctx.moveTo(x0,y0);ctx.bezierCurveTo(cx1,cy1,cx2,cy2,x1,y1);ctx.strokeStyle=col;ctx.lineWidth=w;ctx.lineCap='round';ctx.stroke();}
+function _zzz(ctx,t,col){
+  const p=(t%2400)/2400, al=Math.min(1,Math.min(p/.12,(1-p)/.12));
+  if(al<.05)return;
+  const ya=30-p*14;
+  ctx.globalAlpha=al; ctx.fillStyle=col;
+  ctx.font='bold 9px sans-serif';  ctx.fillText('z',55,ya+28);
+  ctx.font='bold 11px sans-serif'; ctx.fillText('z',61,ya+16);
+  ctx.font='bold 13px sans-serif'; ctx.fillText('Z',68,ya+2);
+  ctx.globalAlpha=1;
+}
+
+// ─────────────────────────────────────────────── Pet
+const PET = {
+  raf: null,
+  ps(){ return state.mode!=='work' ? 'sleep' : timerInterval ? 'play' : 'idle'; },
+  start(){
+    const cv=$('pet-canvas'); if(!cv)return;
+    const ctx=cv.getContext('2d');
+    const loop=ts=>{ this.draw(ctx,ts); this.raf=requestAnimationFrame(loop); };
+    this.raf=requestAnimationFrame(loop);
+  },
+  draw(ctx,t){ ctx.clearRect(0,0,90,90); state.petType==='cat'?this.cat(ctx,t):this.dog(ctx,t); },
+
+  cat(ctx,t){
+    const ps=this.ps(), F='#8888aa', D='#56567a', P='#e088a0', cx=45;
+    if(ps==='sleep'){
+      _ell(ctx,50,70,22,11,0,F);
+      _curve(ctx,70,65, 83,52, 80,74, 68,72, F,5);
+      _circ(ctx,25,66,12,F);
+      _poly(ctx,[17,58,19,48,25,57],F); _poly(ctx,[18,57,20,52,24,57],P);
+      _eyeClose(ctx,21,66,3,D); _eyeClose(ctx,29,66,3,D);
+      _zzz(ctx,t,D); return;
+    }
+    const bou=ps==='play'?-Math.abs(Math.sin(t*.007))*10:0;
+    const br=Math.sin(t*.0018)*1.4, ta=Math.sin(t*.0012)*(ps==='play'?.68:.28);
+    const blk=(t%3800)<160, fy=83+bou, hy=fy-37;
+    // tail
+    _curve(ctx,cx+16,fy-14, cx+38+ta*8,fy-32, cx+34+ta*8,fy-50, cx+22+ta*8,ps==='play'?fy-62:fy-55, F,5);
+    // body
+    _ell(ctx,cx,fy-15,16,11+br*.5,ps==='play'?-.14:0,F);
+    // head
+    _circ(ctx,cx,hy,13,F);
+    // ears
+    const eh=ps==='play'?19:17;
+    _poly(ctx,[cx-14,hy-5, cx-10,hy-eh, cx-3,hy-7],F);
+    _poly(ctx,[cx+3,hy-7,  cx+10,hy-eh, cx+14,hy-5],F);
+    _poly(ctx,[cx-12,hy-6, cx-9,hy-eh+4, cx-5,hy-7],P);
+    _poly(ctx,[cx+5,hy-7,  cx+9,hy-eh+4, cx+12,hy-6],P);
+    // eyes
+    const eo=ps==='play'?3.5:(blk?.5:2.8);
+    _ell(ctx,cx-5,hy,2.5,eo,0,D); _ell(ctx,cx+5,hy,2.5,eo,0,D);
+    if(!blk){
+      ctx.fillStyle='rgba(255,255,255,.5)';
+      ctx.beginPath();ctx.arc(cx-4,hy-1,.9,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(cx+6,hy-1,.9,0,Math.PI*2);ctx.fill();
+    }
+    // nose + mouth
+    _poly(ctx,[cx-2,hy+5, cx+2,hy+5, cx,hy+7],P);
+    ctx.beginPath();
+    ctx.moveTo(cx,hy+7);ctx.quadraticCurveTo(cx-4,hy+10,cx-5,hy+9);
+    ctx.moveTo(cx,hy+7);ctx.quadraticCurveTo(cx+4,hy+10,cx+5,hy+9);
+    ctx.strokeStyle=D;ctx.lineWidth=1.2;ctx.stroke();
+    // paws
+    if(ps==='play'){ _ell(ctx,cx-11,fy+2,6,4,-.4,F); _ell(ctx,cx+11,fy+2,6,4,.4,F); }
+    else           { _ell(ctx,cx-9,fy,7,4.5,0,F);    _ell(ctx,cx+9,fy,7,4.5,0,F);   }
+  },
+
+  dog(ctx,t){
+    const ps=this.ps(), F='#c8966e', D='#7a4e28', SN='#d4a880', cx=45;
+    if(ps==='sleep'){
+      _ell(ctx,50,70,22,11,0,F);
+      _curve(ctx,70,64, 80,54, 78,72, 67,72, F,6);
+      _circ(ctx,25,66,13,F);
+      _ell(ctx,16,72,6,10,-.18,F); _ell(ctx,20,68,6,4,0,SN); _circ(ctx,18,67,2.5,D);
+      _eyeClose(ctx,22,63,3,D); _eyeClose(ctx,30,63,3,D);
+      _zzz(ctx,t,D); return;
+    }
+    const bou=ps==='play'?-Math.abs(Math.sin(t*.007))*10:0;
+    const br=Math.sin(t*.0018)*1.4, tsp=ps==='play'?.012:.006;
+    const ta=Math.sin(t*tsp)*(ps==='play'?1.1:.44);
+    const blk=(t%4000)<180, fy=83+bou, hy=fy-38;
+    // tail
+    _curve(ctx,cx+17,fy-16, cx+28+ta*10,fy-28, cx+26+ta*10,fy-40, cx+18+ta*8,fy-42, F,6);
+    // body
+    _ell(ctx,cx,fy-16,17,12+br*.5,0,F);
+    // head
+    _circ(ctx,cx,hy,15,F);
+    // floppy ears
+    _ell(ctx,cx-18,hy+5,7,11,-.08,F); _ell(ctx,cx+18,hy+5,7,11,.08,F);
+    ctx.globalAlpha=.1; _ell(ctx,cx-18,hy+5,5,9,-.08,'#000'); _ell(ctx,cx+18,hy+5,5,9,.08,'#000'); ctx.globalAlpha=1;
+    // snout
+    _ell(ctx,cx,hy+6,7,5,0,SN);
+    // eyes
+    const eo=ps==='play'?4:(blk?.5:3.5);
+    _ell(ctx,cx-6,hy-3,3,eo,0,D); _ell(ctx,cx+6,hy-3,3,eo,0,D);
+    if(!blk){
+      ctx.fillStyle='rgba(255,255,255,.5)';
+      ctx.beginPath();ctx.arc(cx-5,hy-4,1.1,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(cx+7,hy-4,1.1,0,Math.PI*2);ctx.fill();
+    }
+    // nose
+    _ell(ctx,cx,hy+4,3.5,2.5,0,D);
+    // paws
+    if(ps==='play'){ _ell(ctx,cx-12,fy+3,7,4,-.5,F); _ell(ctx,cx+12,fy+3,7,4,.5,F); }
+    else           { _ell(ctx,cx-10,fy+1,7,5,0,F);   _ell(ctx,cx+10,fy+1,7,5,0,F);  }
+  },
+};
 
 // ─────────────────────────────────────────────── Cycles
 function adjustCycles(delta) {
@@ -907,7 +1050,7 @@ function toggleMenu() {
 }
 
 // ─────────────────────────────────────────────── Boot
-load(); applyTheme(); applyAllLabels(); renderTasks();
+load(); applyTheme(); applyAllLabels(); renderTasks(); PET.start();
 
 // ─────────────────────────────────────────────── Events
 $('back-btn').addEventListener('click', () => showPage('main'));
@@ -946,6 +1089,12 @@ $('task-input').addEventListener('keydown', e => {
 $('archive-done-btn').addEventListener('click', archiveDone);
 $('clear-archive-btn').addEventListener('click', () => { state.archived = []; renderArchive(); save(); });
 $('notif-ok').addEventListener('click', notifOk);
+
+$('pet-area').addEventListener('click', () => {
+  state.petType = state.petType === 'cat' ? 'dog' : 'cat';
+  $('pet-label').textContent = s(state.petType === 'cat' ? 'pet_cat' : 'pet_dog');
+  save();
+});
 </script>
 </body>
 </html>
